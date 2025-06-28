@@ -11,8 +11,6 @@ export class WarpAnimator {
   private animationId: number | null = null
   private isPlaying = false
   private direction: 'forward' | 'backward' = 'forward'
-  private pauseCounter = 0
-  private pauseDuration = 10 // frames to pause at start/end
   
   constructor(
     private sourceCanvas: HTMLCanvasElement,
@@ -37,43 +35,40 @@ export class WarpAnimator {
     canvas.height = this.sourceCanvas.height
     const ctx = canvas.getContext('2d')!
     
-    // Clear canvas to prevent white flash
-    ctx.fillStyle = '#f3f4f6' // Match background color
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // Smoothly blend between source and target
-    ctx.globalAlpha = 1
+    // Draw base image
     ctx.drawImage(this.sourceCanvas, 0, 0)
     
-    if (progress > 0) {
-      // Crossfade to target
-      ctx.globalAlpha = progress
-      ctx.drawImage(this.targetCanvas, 0, 0)
-    }
-    
-    // Add mesh grid visualization on top
+    // Create a mesh overlay effect during transition
     if (progress > 0 && progress < 1) {
-      ctx.globalAlpha = Math.sin(progress * Math.PI) * 0.4
+      // Semi-transparent overlay
+      ctx.globalAlpha = progress * 0.6
+      ctx.drawImage(this.targetCanvas, 0, 0)
+      
+      // Add mesh grid visualization
+      ctx.globalAlpha = Math.sin(progress * Math.PI) * 0.3
       ctx.strokeStyle = '#10b981'
       ctx.lineWidth = 1
       
-      // Draw warping grid lines
-      const gridSize = 25
+      // Draw grid lines to show warping
+      const gridSize = 20
       for (let x = 0; x < canvas.width; x += gridSize) {
-        const offset = Math.sin(progress * Math.PI) * 8 * Math.sin(x / 60)
+        const offset = Math.sin(progress * Math.PI) * 10 * Math.sin(x / 50)
         ctx.beginPath()
-        ctx.moveTo(x + offset * 0.5, 0)
+        ctx.moveTo(x, 0)
         ctx.lineTo(x + offset, canvas.height)
         ctx.stroke()
       }
       
       for (let y = 0; y < canvas.height; y += gridSize) {
-        const offset = Math.sin(progress * Math.PI) * 8 * Math.cos(y / 60)
+        const offset = Math.sin(progress * Math.PI) * 10 * Math.cos(y / 50)
         ctx.beginPath()
-        ctx.moveTo(0, y + offset * 0.5)
+        ctx.moveTo(0, y)
         ctx.lineTo(canvas.width, y + offset)
         ctx.stroke()
       }
+    } else if (progress === 1) {
+      // Full target image
+      ctx.drawImage(this.targetCanvas, 0, 0)
     }
     
     return canvas
@@ -100,38 +95,31 @@ export class WarpAnimator {
       // Draw current frame
       const frame = this.frames[this.currentFrame]
       if (frame) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        // Don't clear - just draw over to avoid white flash
         ctx.drawImage(frame.canvas, 0, 0)
       }
       
-      // Handle pauses at start/end
-      if ((this.currentFrame === 0 || this.currentFrame === this.frames.length - 1) && this.pauseCounter < this.pauseDuration) {
-        this.pauseCounter++
-      } else {
-        this.pauseCounter = 0
-        
-        // Update frame index
-        if (this.direction === 'forward') {
-          this.currentFrame++
-          if (this.currentFrame >= this.frames.length) {
-            if (loop) {
-              this.direction = 'backward'
-              this.currentFrame = this.frames.length - 1
-            } else {
-              this.stop()
-              return
-            }
+      // Update frame index
+      if (this.direction === 'forward') {
+        this.currentFrame++
+        if (this.currentFrame >= this.frames.length) {
+          if (loop) {
+            this.direction = 'backward'
+            this.currentFrame = this.frames.length - 1
+          } else {
+            this.stop()
+            return
           }
-        } else {
-          this.currentFrame--
-          if (this.currentFrame < 0) {
-            if (loop) {
-              this.direction = 'forward'
-              this.currentFrame = 0
-            } else {
-              this.stop()
-              return
-            }
+        }
+      } else {
+        this.currentFrame--
+        if (this.currentFrame < 0) {
+          if (loop) {
+            this.direction = 'forward'
+            this.currentFrame = 0
+          } else {
+            this.stop()
+            return
           }
         }
       }
@@ -153,7 +141,6 @@ export class WarpAnimator {
   reset(): void {
     this.currentFrame = 0
     this.direction = 'forward'
-    this.pauseCounter = 0
   }
   
   destroy(): void {
