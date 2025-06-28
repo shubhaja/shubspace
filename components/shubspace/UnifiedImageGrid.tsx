@@ -177,7 +177,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
         ctx.fillStyle = '#ff1493'
         avgLandmarks.positions.forEach(point => {
           ctx.beginPath()
-          ctx.arc(point.x * specialCanvas.width, point.y * specialCanvas.height, 6, 0, 2 * Math.PI)
+          ctx.arc(point.x * specialCanvas.width, point.y * specialCanvas.height, 4, 0, 2 * Math.PI)
           ctx.fill()
         })
       }
