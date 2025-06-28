@@ -223,7 +223,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
           ctx.fillStyle = '#00ff00'
           landmarks[i].positions.forEach(point => {
             ctx.beginPath()
-            ctx.arc(point.x * canvas.width, point.y * canvas.height, 8 * scale, 0, 2 * Math.PI)
+            ctx.arc(point.x * canvas.width, point.y * canvas.height, 12 * scale, 0, 2 * Math.PI)
             ctx.fill()
           })
         }
