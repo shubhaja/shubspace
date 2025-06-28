@@ -71,6 +71,25 @@ function ShubspaceContent() {
               >
                 Loading face detection models...
               </motion.p>
+              <motion.div
+                className="mt-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+              >
+                <motion.div
+                  className="w-2 h-2 bg-gray-900 rounded-full mx-auto"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    opacity: [1, 0.5, 1]
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              </motion.div>
             </motion.div>
           </motion.div>
         )}
@@ -221,13 +240,13 @@ function ShubspaceContent() {
                   creates optimal triangles for smooth transformations.
                 </p>
                 <p>
-                  Each face is then <strong>warped</strong> to match the average landmark positions. 
-                  We use affine transformations on each triangle to smoothly deform the facial 
-                  features while preserving local detail.
+                  Watch as each face <strong>animates</strong> between its original shape and 
+                  the warped shape that matches the average landmark positions. We use affine 
+                  transformations on each triangle to smoothly deform the facial features.
                 </p>
                 <p>
-                  The pink dots represent the target positions where all faces are being 
-                  morphed to - these change dynamically as you adjust the blend weights.
+                  The target mesh (top-left) shows where all faces are morphing to - these 
+                  positions change dynamically as you adjust the blend weights below.
                 </p>
               </>
             }

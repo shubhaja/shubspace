@@ -5,7 +5,6 @@ import { useShubspace } from '@/lib/context/ShubspaceContext'
 import { FaceLandmarks } from '@/lib/face-detection/faceDetection'
 import { createTriangulation } from '@/lib/triangulation/triangulation'
 import { morphFaces, warpImageToTarget } from '@/lib/morphing/morphingEngine'
-import { WarpAnimator } from '@/lib/morphing/warpAnimation'
 import { motion } from 'framer-motion'
 
 interface UnifiedImageGridProps {
@@ -16,7 +15,9 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
   const { weights, faceLandmarks, isPreprocessed } = useShubspace()
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([null, null, null, null, null, null])
   const [loadedImages, setLoadedImages] = useState<HTMLImageElement[]>([])
-  const animatorsRef = useRef<(WarpAnimator | null)[]>([null, null, null, null, null])
+  const [animationProgress, setAnimationProgress] = useState(0)
+  const animationRef = useRef<number | null>(null)
+  const warpedCanvasCache = useRef<(HTMLCanvasElement | null)[]>([null, null, null, null, null])
 
   // Load images
   useEffect(() => {
@@ -35,13 +36,33 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
     }
     loadImages()
   }, [])
-  
-  // Cleanup animations on unmount or view change
+
+  // Animation loop for mesh warping
   useEffect(() => {
-    return () => {
-      animatorsRef.current.forEach(animator => animator?.destroy())
+    if (specialType !== 'mesh' || !isPreprocessed) return
+
+    const animate = () => {
+      setAnimationProgress(prev => {
+        // Use sine wave for smooth in-out animation
+        const newProgress = (prev + 0.01) % 1
+        return newProgress
+      })
+      animationRef.current = requestAnimationFrame(animate)
     }
-  }, [specialType])
+
+    animationRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [specialType, isPreprocessed])
+
+  // Clear warped canvas cache when weights or images change
+  useEffect(() => {
+    warpedCanvasCache.current = [null, null, null, null, null]
+  }, [weights, loadedImages])
 
   // Draw special image in first canvas
   useEffect(() => {
@@ -189,6 +210,12 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
           ctx.arc(point.x * specialCanvas.width, point.y * specialCanvas.height, 4, 0, 2 * Math.PI)
           ctx.fill()
         })
+        
+        // Add text to indicate this is the target shape
+        ctx.fillStyle = '#10b981'
+        ctx.font = `${12 * scale}px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+        ctx.textAlign = 'center'
+        ctx.fillText('Target Mesh', specialCanvas.width / 2, specialCanvas.height - 10 * scale)
       }
     }
     
@@ -237,7 +264,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
           })
         }
       } else if (specialType === 'mesh') {
-        // Create animated warping for mesh view
+        // Draw animated transition between unwarped and warped images
         const sum = weights.reduce((a, b) => a + b, 0)
         const normalizedWeights = weights.map(w => w / sum)
         
@@ -264,10 +291,10 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
         // Create triangulation
         const triangles = createTriangulation(allTargetPoints)
         
-        // Stop any existing animations
-        animatorsRef.current.forEach(animator => animator?.destroy())
+        // Calculate blend factor using sine wave for smooth in-out
+        const blendFactor = (Math.sin(animationProgress * Math.PI * 2) + 1) / 2
         
-        // Create animations for each image
+        // Draw each image with animated warping
         for (let i = 0; i < 5; i++) {
           const canvas = canvasRefs.current[i + 1]
           if (!canvas) continue
@@ -275,9 +302,6 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
           const container = canvas.parentElement
           if (!container) continue
           
-          const sourcePoints = [...landmarks[i].positions, ...boundaryPoints]
-          
-          // Scale to fit container
           const img = loadedImages[i]
           const containerWidth = container.clientWidth
           const maxHeight = (window.innerHeight - 192) / 2
@@ -287,39 +311,46 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
             scale = maxHeight / img.height
           }
           
-          const targetWidth = Math.floor(img.width * scale)
-          const targetHeight = Math.floor(img.height * scale)
+          canvas.width = img.width * scale
+          canvas.height = img.height * scale
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })!
           
-          // Create source canvas (original image)
-          const sourceCanvas = document.createElement('canvas')
-          sourceCanvas.width = targetWidth
-          sourceCanvas.height = targetHeight
-          const srcCtx = sourceCanvas.getContext('2d')!
-          srcCtx.drawImage(img, 0, 0, targetWidth, targetHeight)
+          // Clear canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
           
-          // Create target canvas (warped image)
-          const warpedCanvas = await warpImageToTarget(
-            loadedImages[i],
-            sourcePoints,
-            allTargetPoints,
-            triangles,
-            targetWidth,
-            targetHeight
-          )
+          // Always draw original image at full opacity first
+          ctx.globalAlpha = 1
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           
-          // Set up canvas
-          canvas.width = targetWidth
-          canvas.height = targetHeight
-          
-          // Create animator with more frames for smoother animation
-          const animator = new WarpAnimator(sourceCanvas, warpedCanvas, 30)
-          animator.generateFrames()
-          animatorsRef.current[i] = animator
-          
-          // Start animation with a slight delay for each face
-          setTimeout(() => {
-            animator.play(canvas, true, 8) // 8 fps for slower animation
-          }, i * 300)
+          // Only compute and draw warped image if we need it
+          if (blendFactor > 0.01) {
+            let warpedCanvas = warpedCanvasCache.current[i]
+            
+            // Generate warped canvas if not cached
+            if (!warpedCanvas) {
+              const sourcePoints = [...landmarks[i].positions, ...boundaryPoints]
+              
+              // Use warpImageToTarget to create warped version
+              warpedCanvas = await warpImageToTarget(
+                loadedImages[i],
+                sourcePoints,
+                allTargetPoints,
+                triangles,
+                canvas.width,
+                canvas.height
+              )
+              
+              // Cache the result
+              warpedCanvasCache.current[i] = warpedCanvas
+            }
+            
+            // Draw warped image on top with blend factor opacity
+            ctx.globalAlpha = blendFactor
+            ctx.drawImage(warpedCanvas, 0, 0)
+            
+            // Reset alpha
+            ctx.globalAlpha = 1
+          }
         }
       } else {
         // For composite type, just show the original images
@@ -349,7 +380,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
     }
     
     drawImages()
-  }, [isPreprocessed, faceLandmarks, loadedImages, specialType, weights])
+  }, [isPreprocessed, faceLandmarks, loadedImages, specialType, weights, animationProgress])
 
   // Define colors matching the control panel
   const rainbowColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'] // red, orange, yellow, green, blue
@@ -424,21 +455,6 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
             whileHover="hover"
             initial="rest"
             animate="rest"
-            onMouseEnter={() => {
-              // Pause animation on hover for mesh view
-              if (specialType === 'mesh' && animatorsRef.current[idx]) {
-                animatorsRef.current[idx]?.stop()
-              }
-            }}
-            onMouseLeave={() => {
-              // Resume animation on mouse leave for mesh view
-              if (specialType === 'mesh' && animatorsRef.current[idx]) {
-                const canvas = canvasRefs.current[idx + 1]
-                if (canvas) {
-                  animatorsRef.current[idx]?.play(canvas, true, 8)
-                }
-              }
-            }}
           >
             <motion.div variants={wiggleAnimation}>
               <canvas 
