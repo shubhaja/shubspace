@@ -312,14 +312,14 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
           canvas.height = targetHeight
           
           // Create animator with more frames for smoother animation
-          const animator = new WarpAnimator(sourceCanvas, warpedCanvas, 30)
+          const animator = new WarpAnimator(sourceCanvas, warpedCanvas, 40)
           animator.generateFrames()
           animatorsRef.current[i] = animator
           
           // Start animation with a slight delay for each face
           setTimeout(() => {
-            animator.play(canvas, true, 15) // 15 fps for slower, more visible animation
-          }, i * 300)
+            animator.play(canvas, true, 8) // 8 fps for much slower animation
+          }, i * 400)
         }
       } else {
         // For composite type, just show the original images
@@ -435,7 +435,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
               if (specialType === 'mesh' && animatorsRef.current[idx]) {
                 const canvas = canvasRefs.current[idx + 1]
                 if (canvas) {
-                  animatorsRef.current[idx]?.play(canvas, true, 15)
+                  animatorsRef.current[idx]?.play(canvas, true, 8)
                 }
               }
             }}
