@@ -1,5 +1,6 @@
 import { FaceLandmarks } from '@/lib/face-detection/faceDetection'
 import { createTriangulation, Triangle, Point } from '@/lib/triangulation/triangulation'
+import { morphCache } from './morphCache'
 
 export interface MorphedImageData {
   canvas: HTMLCanvasElement
@@ -280,48 +281,57 @@ export function blendImages(
   const sum = weights.reduce((a, b) => a + b, 0) || 1
   const normalizedWeights = weights.map(w => w / sum)
   
+  // Filter out zero-weight canvases early
+  const activeCanvases: { canvas: HTMLCanvasElement; weight: number }[] = []
+  for (let i = 0; i < warpedCanvases.length; i++) {
+    if (normalizedWeights[i] > 0.001) { // Skip very small weights
+      activeCanvases.push({ canvas: warpedCanvases[i], weight: normalizedWeights[i] })
+    }
+  }
+  
+  // If only one canvas has weight, return it directly
+  if (activeCanvases.length === 1 && Math.abs(activeCanvases[0].weight - 1) < 0.001) {
+    const outputCanvas = document.createElement('canvas')
+    outputCanvas.width = activeCanvases[0].canvas.width
+    outputCanvas.height = activeCanvases[0].canvas.height
+    const ctx = outputCanvas.getContext('2d')!
+    ctx.drawImage(activeCanvases[0].canvas, 0, 0)
+    return outputCanvas
+  }
+  
   // Create output canvas
   const outputCanvas = document.createElement('canvas')
   outputCanvas.width = warpedCanvases[0].width
   outputCanvas.height = warpedCanvases[0].height
   const ctx = outputCanvas.getContext('2d', { willReadFrequently: true })!
   
-  // Get image data for proper pixel-level blending
+  // Get all image data at once to minimize context switches
+  const imageDatas: { data: Uint8ClampedArray; weight: number }[] = []
+  for (const { canvas, weight } of activeCanvases) {
+    const tempCtx = canvas.getContext('2d', { willReadFrequently: true })!
+    const imageData = tempCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height)
+    imageDatas.push({ data: imageData.data, weight })
+  }
+  
+  // Create output image data
   const outputImageData = ctx.createImageData(outputCanvas.width, outputCanvas.height)
   const outputData = outputImageData.data
+  const pixelCount = outputData.length
   
-  // Initialize output to black
-  for (let i = 0; i < outputData.length; i += 4) {
-    outputData[i] = 0     // R
-    outputData[i + 1] = 0 // G
-    outputData[i + 2] = 0 // B
-    outputData[i + 3] = 255 // A
-  }
-  
-  // Blend each warped canvas
-  for (let canvasIdx = 0; canvasIdx < warpedCanvases.length; canvasIdx++) {
-    const weight = normalizedWeights[canvasIdx]
-    if (weight === 0) continue
+  // Blend all pixels in a single loop
+  for (let i = 0; i < pixelCount; i += 4) {
+    let r = 0, g = 0, b = 0
     
-    // Get image data from this canvas
-    const tempCtx = warpedCanvases[canvasIdx].getContext('2d', { willReadFrequently: true })!
-    const imageData = tempCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height)
-    const data = imageData.data
-    
-    // Add weighted contribution to output
-    for (let i = 0; i < data.length; i += 4) {
-      outputData[i] += data[i] * weight       // R
-      outputData[i + 1] += data[i + 1] * weight // G
-      outputData[i + 2] += data[i + 2] * weight // B
-      // Alpha stays at 255
+    for (const { data, weight } of imageDatas) {
+      r += data[i] * weight
+      g += data[i + 1] * weight
+      b += data[i + 2] * weight
     }
-  }
-  
-  // Clamp values to 0-255 range (shouldn't be necessary if weights sum to 1)
-  for (let i = 0; i < outputData.length; i += 4) {
-    outputData[i] = Math.min(255, Math.max(0, Math.round(outputData[i])))
-    outputData[i + 1] = Math.min(255, Math.max(0, Math.round(outputData[i + 1])))
-    outputData[i + 2] = Math.min(255, Math.max(0, Math.round(outputData[i + 2])))
+    
+    outputData[i] = Math.round(r)
+    outputData[i + 1] = Math.round(g)
+    outputData[i + 2] = Math.round(b)
+    outputData[i + 3] = 255
   }
   
   // Put the blended image data on the canvas
@@ -336,6 +346,13 @@ export async function morphFaces(
   landmarks: FaceLandmarks[],
   weights: number[]
 ): Promise<HTMLCanvasElement> {
+  // Check cache first
+  const cached = morphCache.get(weights, images.length)
+  if (cached) {
+    console.log('Using cached morph result')
+    return cached
+  }
+  
   // Use the dimensions of the first image as the output size
   const outputWidth = images[0].width
   const outputHeight = images[0].height
@@ -379,5 +396,10 @@ export async function morphFaces(
   }
   
   // Blend the warped images
-  return blendImages(warpedCanvases, weights)
+  const result = blendImages(warpedCanvases, weights)
+  
+  // Cache the result
+  morphCache.set(weights, images.length, result)
+  
+  return result
 } 

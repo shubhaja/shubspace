@@ -7,7 +7,7 @@ import { useShubspace } from "@/lib/context/ShubspaceContext"
 import { motion, AnimatePresence } from "framer-motion"
 
 const ControlPanel = () => {
-  const { weights, rawWeights, setWeights, updateRawWeight } = useShubspace()
+  const { weights, rawWeights, setWeights, updateRawWeight, isNormalizing } = useShubspace()
   
   const handleWeightChange = (index: number, value: number[]) => {
     updateRawWeight(index, value[0])
@@ -33,15 +33,44 @@ const ControlPanel = () => {
       transition={{ duration: 0.5 }}
     >
       <Card className="p-6 bg-white/95 border-gray-200 backdrop-blur-sm">
-        <motion.h2 
-          className="text-2xl font-bold text-gray-900 mb-6" 
-          style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', textTransform: 'none' }}
+        <motion.div 
+          className="flex items-center justify-between mb-6"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          Control Panel
-        </motion.h2>
+          <h2 
+            className="text-2xl font-bold text-gray-900" 
+            style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', textTransform: 'none' }}
+          >
+            Control Panel
+          </h2>
+          <AnimatePresence>
+            {isNormalizing && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-2"
+              >
+                <motion.div
+                  className="w-2 h-2 bg-gray-600 rounded-full"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    opacity: [1, 0.5, 1]
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+                <span className="text-sm text-gray-500">Normalizing...</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
         
         <div className="space-y-6 mb-8">
           {rawWeights.map((rawWeight, index) => (
