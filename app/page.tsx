@@ -1,103 +1,332 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { ShubspaceProvider, useShubspace } from '@/lib/context/ShubspaceContext'
+import ControlPanel from '@/components/shubspace/ControlPanel'
+import FacePreprocessor from '@/components/shubspace/FacePreprocessor'
+import UnifiedImageGrid from '@/components/shubspace/UnifiedImageGrid'
+import SectionLayout from '@/components/shubspace/SectionLayout'
+import Image from 'next/image'
+import { useRef, useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+function ShubspaceContent() {
+  const { setFaceLandmarks, isPreprocessed } = useShubspace()
+  const textContentRef = useRef<HTMLDivElement>(null)
+  const [imageHeight, setImageHeight] = useState<number | undefined>()
+
+  useEffect(() => {
+    const updateImageHeight = () => {
+      if (textContentRef.current) {
+        setImageHeight(textContentRef.current.offsetHeight)
+      }
+    }
+
+    updateImageHeight()
+    window.addEventListener('resize', updateImageHeight)
+    return () => window.removeEventListener('resize', updateImageHeight)
+  }, [isPreprocessed])
+
+  // Floating animation for the loading screen
+  const floatingAnimation = {
+    y: [0, -10, 0],
+    transition: {
+      duration: 3,
+      repeat: Infinity,
+      ease: "easeInOut" as const
+    }
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="h-screen overflow-y-auto overflow-x-hidden scroll-snap-container">
+      {/* Face preprocessor (hidden, auto-starts) */}
+      <div style={{ display: 'none' }}>
+        <FacePreprocessor onComplete={setFaceLandmarks} autoStart />
+      </div>
+      
+      <AnimatePresence mode="wait">
+        {!isPreprocessed && (
+          <motion.div 
+            className="h-screen flex items-center justify-center"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <motion.div 
+              className="text-center"
+              animate={floatingAnimation}
+            >
+              <motion.h1 
+                className="text-5xl font-bold font-shubha text-gray-900 mb-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                S(h)ubspace
+              </motion.h1>
+              <motion.p 
+                className="text-xl text-gray-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+              >
+                Loading face detection models...
+              </motion.p>
+              <motion.div
+                className="mt-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+              >
+                <motion.div
+                  className="w-2 h-2 bg-gray-900 rounded-full mx-auto"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    opacity: [1, 0.5, 1]
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {isPreprocessed && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <div className="section-container bg-gray-50">
+            <div className="w-full max-w-[1400px] mx-auto px-6 lg:px-12 h-full flex items-center py-20">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-start w-full">
+                {/* Left side - Image (50% width) */}
+                <motion.div 
+                  className="flex items-start justify-end"
+                  initial={{ opacity: 0, x: -100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                >
+                  <div className="w-full max-w-[600px] relative">
+                    <motion.div 
+                      className="relative w-full overflow-hidden rounded-lg shadow-lg"
+                      style={{ height: imageHeight ? `${imageHeight}px` : 'auto' }}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <Image 
+                        src="/images/intro.JPG" 
+                        alt="Shub party attendees" 
+                        width={1206}
+                        height={2144}
+                        className="w-full h-full object-cover object-top"
+                        priority
+                      />
+                    </motion.div>
+                  </div>
+                </motion.div>
+                
+                {/* Right side - Title and Description (50% width) */}
+                <motion.div 
+                  className="flex items-start justify-start"
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                >
+                  <div className="w-full max-w-[600px]" ref={textContentRef}>
+                    <motion.h1 
+                      className="text-5xl md:text-6xl font-bold font-shubha text-gray-900 mb-8"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.4 }}
+                    >
+                      s(h)ubspace
+                    </motion.h1>
+                    <motion.div 
+                      className="text-base lg:text-lg text-gray-600 space-y-4"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.8, delay: 0.5 }}
+                    >
+                      <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.6 }}
+                      >
+                        One of the most fortunate—and bizarre—experiences I&apos;ve had in San Francisco was attending a party where every attendee shared my name. Well, more or less.
+                      </motion.p>
+                      <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.7 }}
+                      >
+                        &ldquo;Shub,&rdquo; meaning auspicious in several Indian languages, has sprouted a variety of permutations depending on region, gender, and family tradition: Shubham, Shubhankar, Shubhan, Shubha, and more.
+                      </motion.p>
+                      <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.8 }}
+                      >
+                        Fortunately, I remembered that the human face occupies a linear subspace—a principle from computer vision suggesting that any collection of faces can be mathematically averaged into a single composite.
+                      </motion.p>
+                      <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.9 }}
+                      >
+                        So I set out to create the Shubiest Shub of San Francisco. Or at least, of those Shubs willing to answer a random LinkedIn invitation and show up to a party.
+                      </motion.p>
+                    </motion.div>
+                    <motion.div 
+                      className="mt-12 text-gray-400"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.8, delay: 1.0 }}
+                    >
+                      <p className="text-sm">Scroll down to explore the algorithm</p>
+                      <motion.div 
+                        className="mt-2"
+                        animate={{ y: [0, 5, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        ↓
+                      </motion.div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          {/* Detected Landmarks Section */}
+          <SectionLayout
+            title="Detected Landmarks"
+            background="white"
+            description={
+              <>
+                <p>
+                  Using face detection AI, we identify 68 key facial landmarks on each face. 
+                  These points map important features like eyes, nose, mouth, and jawline.
+                </p>
+                <p>
+                  The pink dots in the top-left show the <strong>weighted average</strong> of all landmark 
+                  positions based on your slider settings. As you adjust the blend, these average 
+                  points shift to represent the combined facial structure.
+                </p>
+                <p>
+                  The green dots on each face show the detected landmarks that will be used 
+                  for morphing. These form the foundation for our face blending algorithm.
+                </p>
+              </>
+            }
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <UnifiedImageGrid specialType="landmarks" />
+          </SectionLayout>
+
+          {/* Warped Images Section */}
+          <SectionLayout
+            title="Warped Images & Average Mesh"
+            background="gray"
+            description={
+              <>
+                <p>
+                  The triangulation mesh (green lines) shows how we divide the face into 
+                  triangular regions for morphing. This technique, called Delaunay triangulation, 
+                  creates optimal triangles for smooth transformations.
+                </p>
+                <p>
+                  Each face is then <strong>warped</strong> to match the average landmark positions. 
+                  We use affine transformations on each triangle to smoothly deform the facial 
+                  features while preserving local detail.
+                </p>
+                <p>
+                  The pink dots represent the target positions where all faces are being 
+                  morphed to - these change dynamically as you adjust the blend weights.
+                </p>
+              </>
+            }
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <UnifiedImageGrid specialType="mesh" />
+          </SectionLayout>
+
+          {/* Interactive Composite Section */}
+          <motion.div 
+            className="section-container bg-white"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="w-full max-w-[1920px] mx-auto px-6 lg:px-12 h-full flex items-center py-12 lg:py-16">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center w-full">
+                {/* Left side - Images (2/3 width) */}
+                <motion.div 
+                  className="flex items-center justify-center lg:col-span-8 h-full"
+                  initial={{ opacity: 0, x: -50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                >
+                  <div className="w-full flex items-center justify-center" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+                    <UnifiedImageGrid specialType="composite" />
+                  </div>
+                </motion.div>
+                
+                {/* Right side - Control Panel (1/3 width) */}
+                <motion.div 
+                  className="lg:col-span-4 flex items-center"
+                  initial={{ opacity: 0, x: 50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                >
+                  <div className="w-full pr-6 lg:pr-12">
+                    <motion.h2 
+                      className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6"
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.6, delay: 0.5 }}
+                    >
+                      Interactive Composite
+                    </motion.h2>
+                    <motion.div 
+                      className="text-base lg:text-lg text-gray-600 space-y-4 mb-8"
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.6, delay: 0.6 }}
+                    >
+                      <p>
+                        The final step blends all warped faces together using your specified weights. 
+                        Each pixel is a weighted average of the corresponding pixels from all faces.
+                      </p>
+                      <p>
+                        Adjust the sliders below to control how much each face contributes to 
+                        the final composite. The weights automatically normalize to 100%.
+                      </p>
+                    </motion.div>
+                    <ControlPanel />
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
-  );
+  )
+}
+
+export default function Page() {
+  return (
+    <ShubspaceProvider>
+      <ShubspaceContent />
+    </ShubspaceProvider>
+  )
 }
