@@ -71,25 +71,6 @@ function ShubspaceContent() {
               >
                 Loading face detection models...
               </motion.p>
-              <motion.div
-                className="mt-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.5 }}
-              >
-                <motion.div
-                  className="w-2 h-2 bg-gray-900 rounded-full mx-auto"
-                  animate={{
-                    scale: [1, 1.5, 1],
-                    opacity: [1, 0.5, 1]
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-              </motion.div>
             </motion.div>
           </motion.div>
         )}
