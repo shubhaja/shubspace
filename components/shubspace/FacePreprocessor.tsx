@@ -38,7 +38,7 @@ export default function FacePreprocessor({ onComplete, autoStart = false }: { on
         await new Promise((resolve, reject) => {
           img.onload = resolve
           img.onerror = reject
-          img.src = `/images/shub${i}.png`
+          img.src = `/images/optimized/shub${i}.jpg`
         })
         
         // Detect landmarks on full-size image
