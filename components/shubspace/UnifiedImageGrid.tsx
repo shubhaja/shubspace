@@ -28,7 +28,7 @@ const UnifiedImageGrid = memo(function UnifiedImageGrid({ specialType }: Unified
         img.crossOrigin = 'anonymous'
         await new Promise((resolve) => {
           img.onload = resolve
-          img.src = `/images/shub${i}.png`
+          img.src = `/images/optimized/shub${i}.jpg`
         })
         imgs.push(img)
       }

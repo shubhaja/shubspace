@@ -152,10 +152,10 @@ function ShubspaceContent() {
                       transition={{ type: "spring", stiffness: 300 }}
                     >
                       <Image 
-                        src="/images/intro.JPG" 
+                        src="/images/optimized/intro.jpg" 
                         alt="Shub party attendees" 
-                        width={1206}
-                        height={2144}
+                        width={800}
+                        height={1422}
                         className="w-full h-full object-cover object-top"
                         priority
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
