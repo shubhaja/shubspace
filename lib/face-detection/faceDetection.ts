@@ -20,7 +20,6 @@ export async function loadModels() {
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     ])
     modelsLoaded = true
-    console.log('Face detection models loaded successfully')
   } catch (error) {
     console.error('Error loading face detection models:', error)
     throw error

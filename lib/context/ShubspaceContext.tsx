@@ -99,8 +99,16 @@ export const ShubspaceProvider = ({ children }: ShubspaceProviderProps) => {
   }
   
   const handleSetWeights = (newWeights: number[]) => {
+    setIsNormalizing(true)
     setWeights(newWeights)
     setRawWeights(newWeights)
+    
+    // Show the normalizing indicator briefly
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        setIsNormalizing(false)
+      })
+    }, 300)
   }
   
   return (

@@ -5,6 +5,7 @@ import ControlPanel from '@/components/shubspace/ControlPanel'
 import FacePreprocessor from '@/components/shubspace/FacePreprocessor'
 import UnifiedImageGrid from '@/components/shubspace/UnifiedImageGrid'
 import SectionLayout from '@/components/shubspace/SectionLayout'
+import ScrollNavigation from '@/components/shubspace/ScrollNavigation'
 import Image from 'next/image'
 import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,6 +14,20 @@ function ShubspaceContent() {
   const { setFaceLandmarks, isPreprocessed } = useShubspace()
   const textContentRef = useRef<HTMLDivElement>(null)
   const [imageHeight, setImageHeight] = useState<number | undefined>()
+  const [currentSection, setCurrentSection] = useState(0)
+  const [introImageLoaded, setIntroImageLoaded] = useState(false)
+  const [showContent, setShowContent] = useState(false)
+
+  // Delay showing content after preprocessing is done
+  useEffect(() => {
+    if (isPreprocessed) {
+      // Add a 2 second delay before showing content
+      const timer = setTimeout(() => {
+        setShowContent(true)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isPreprocessed])
 
   useEffect(() => {
     const updateImageHeight = () => {
@@ -25,6 +40,35 @@ function ShubspaceContent() {
     window.addEventListener('resize', updateImageHeight)
     return () => window.removeEventListener('resize', updateImageHeight)
   }, [isPreprocessed])
+
+  // Set up intersection observer for section tracking
+  useEffect(() => {
+    if (!showContent) return
+
+    const sections = document.querySelectorAll('.section-container')
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = Array.from(sections).indexOf(entry.target as HTMLElement)
+            if (index !== -1) {
+              setCurrentSection(index)
+            }
+          }
+        })
+      },
+      {
+        threshold: 0.5,
+        rootMargin: '-20% 0px -20% 0px'
+      }
+    )
+
+    sections.forEach((section) => observer.observe(section))
+
+    return () => {
+      sections.forEach((section) => observer.unobserve(section))
+    }
+  }, [showContent])
 
   // Floating animation for the loading screen
   const floatingAnimation = {
@@ -44,7 +88,7 @@ function ShubspaceContent() {
       </div>
       
       <AnimatePresence mode="wait">
-        {!isPreprocessed && (
+        {!showContent && (
           <motion.div 
             className="h-screen flex items-center justify-center"
             initial={{ opacity: 1 }}
@@ -76,27 +120,34 @@ function ShubspaceContent() {
         )}
       </AnimatePresence>
       
-      {isPreprocessed && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Header */}
-          <div className="section-container bg-gray-50">
-            <div className="w-full max-w-[1400px] mx-auto px-6 lg:px-12 h-full flex items-center py-20">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-start w-full">
+      {showContent && (
+        <>
+          <ScrollNavigation currentSection={currentSection} totalSections={4} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Header */}
+            <div className="section-container bg-gray-50">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center py-8 md:py-12 lg:py-20">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-20 items-center lg:items-start w-full">
                 {/* Left side - Image (50% width) */}
                 <motion.div 
-                  className="flex items-start justify-end"
+                  className="flex items-center justify-center lg:justify-end order-2 lg:order-1"
                   initial={{ opacity: 0, x: -100 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                 >
-                  <div className="w-full max-w-[600px] relative">
+                  <div className="w-full max-w-md lg:max-w-lg xl:max-w-xl relative">
                     <motion.div 
-                      className="relative w-full overflow-hidden rounded-lg shadow-lg"
-                      style={{ height: imageHeight ? `${imageHeight}px` : 'auto' }}
+                      className={`relative w-full overflow-hidden rounded-lg shadow-lg bg-gray-100 ${!introImageLoaded ? 'skeleton-loading' : ''}`}
+                      style={{ 
+                        minHeight: '400px',
+                        height: imageHeight && window.innerWidth >= 1024 ? `${imageHeight}px` : 'auto',
+                        maxHeight: '80vh',
+                        aspectRatio: '1206 / 2144' // Maintain aspect ratio from actual image dimensions
+                      }}
                       whileHover={{ scale: 1.02 }}
                       transition={{ type: "spring", stiffness: 300 }}
                     >
@@ -107,6 +158,10 @@ function ShubspaceContent() {
                         height={2144}
                         className="w-full h-full object-cover object-top"
                         priority
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+                        placeholder="blur"
+                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAYDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJalmYucRfhjqnVniK7n/Zz8oN2zquYqnEpjFFNGvmNE0a0Y//Z"
+                        onLoad={() => setIntroImageLoaded(true)}
                       />
                     </motion.div>
                   </div>
@@ -114,14 +169,14 @@ function ShubspaceContent() {
                 
                 {/* Right side - Title and Description (50% width) */}
                 <motion.div 
-                  className="flex items-start justify-start"
+                  className="flex items-center justify-center lg:justify-start order-1 lg:order-2"
                   initial={{ opacity: 0, x: 100 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.8, delay: 0.3 }}
                 >
-                  <div className="w-full max-w-[600px]" ref={textContentRef}>
+                  <div className="w-full max-w-prose lg:max-w-xl" ref={textContentRef}>
                     <motion.h1 
-                      className="text-5xl md:text-6xl font-bold font-shubha text-gray-900 mb-8"
+                      className="text-4xl sm:text-5xl lg:text-6xl font-bold font-shubha text-gray-900 mb-6 lg:mb-8 text-center lg:text-left"
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.8, delay: 0.4 }}
@@ -129,7 +184,7 @@ function ShubspaceContent() {
                       s(h)ubspace
                     </motion.h1>
                     <motion.div 
-                      className="text-base lg:text-lg text-gray-600 space-y-4"
+                      className="text-base sm:text-lg text-gray-600 space-y-3 lg:space-y-4 text-center lg:text-left"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.8, delay: 0.5 }}
@@ -160,23 +215,8 @@ function ShubspaceContent() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.9 }}
                       >
-                        So I set out to create the Shubiest Shub of San Francisco. Or at least, of those Shubs willing to answer a random LinkedIn invitation and show up to a party.
+                        So I set out to create the Shubiest Shub of San Francisco using old school computer vision methods. Or at least, of those Shubs willing to answer a random LinkedIn invitation and show up to a party.
                       </motion.p>
-                    </motion.div>
-                    <motion.div 
-                      className="mt-12 text-gray-400"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.8, delay: 1.0 }}
-                    >
-                      <p className="text-sm">Scroll down to explore the algorithm</p>
-                      <motion.div 
-                        className="mt-2"
-                        animate={{ y: [0, 5, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        ↓
-                      </motion.div>
                     </motion.div>
                   </div>
                 </motion.div>
@@ -221,8 +261,8 @@ function ShubspaceContent() {
                   creates optimal triangles for smooth transformations.
                 </p>
                 <p>
-                  Watch as each face <strong>animates</strong> between its original shape and 
-                  the warped shape that matches the average landmark positions. We use affine 
+                  Watch as each face animates between its original shape and 
+                  the <strong>warped shape</strong> that matches the average landmark positions. We use affine 
                   transformations on each triangle to smoothly deform the facial features.
                 </p>
                 <p>
@@ -243,11 +283,11 @@ function ShubspaceContent() {
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="w-full max-w-[1920px] mx-auto px-6 lg:px-12 h-full flex items-center py-12 lg:py-16">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center w-full">
-                {/* Left side - Images (2/3 width) */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center py-8 md:py-12 lg:py-16">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-12 items-center w-full">
+                {/* Left side - Images (3/4 width) */}
                 <motion.div 
-                  className="flex items-center justify-center lg:col-span-8 h-full"
+                  className="flex items-center justify-center lg:col-span-9 h-full"
                   initial={{ opacity: 0, x: -50 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -258,17 +298,17 @@ function ShubspaceContent() {
                   </div>
                 </motion.div>
                 
-                {/* Right side - Control Panel (1/3 width) */}
+                {/* Right side - Control Panel (1/4 width) */}
                 <motion.div 
-                  className="lg:col-span-4 flex items-center"
+                  className="lg:col-span-3 flex items-center"
                   initial={{ opacity: 0, x: 50 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.8, delay: 0.4 }}
                 >
-                  <div className="w-full pr-6 lg:pr-12">
+                  <div className="w-full">
                     <motion.h2 
-                      className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6"
+                      className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 lg:mb-6 text-center lg:text-left"
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
@@ -277,19 +317,15 @@ function ShubspaceContent() {
                       Interactive Composite
                     </motion.h2>
                     <motion.div 
-                      className="text-base lg:text-lg text-gray-600 space-y-4 mb-8"
+                      className="text-sm sm:text-base lg:text-lg text-gray-600 space-y-3 lg:space-y-4 mb-6 lg:mb-8 text-center lg:text-left"
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.6, delay: 0.6 }}
                     >
                       <p>
-                        The final step blends all warped faces together using your specified weights. 
-                        Each pixel is a weighted average of the corresponding pixels from all faces.
-                      </p>
-                      <p>
-                        Adjust the sliders below to control how much each face contributes to 
-                        the final composite. The weights automatically normalize to 100%.
+                        The final composite blends all warped faces together as a weighted average.
+                        Adjust the sliders to control each face contribution.
                       </p>
                     </motion.div>
                     <ControlPanel />
@@ -299,6 +335,7 @@ function ShubspaceContent() {
             </div>
           </motion.div>
         </motion.div>
+        </>
       )}
     </div>
   )

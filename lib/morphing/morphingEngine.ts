@@ -147,24 +147,24 @@ export async function warpImageToTarget(
   outputWidth: number,
   outputHeight: number
 ): Promise<HTMLCanvasElement> {
-  console.log('warpImageToTarget called with:', {
-    imageSize: `${sourceImage.width}x${sourceImage.height}`,
-    outputSize: `${outputWidth}x${outputHeight}`,
-    sourceLandmarks: sourceLandmarks.length,
-    targetLandmarks: targetLandmarks.length,
-    triangles: triangles.length
-  })
-  
   const canvas = document.createElement('canvas')
   canvas.width = outputWidth
   canvas.height = outputHeight
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  const ctx = canvas.getContext('2d', { 
+    willReadFrequently: true,
+    alpha: true,
+    desynchronized: true // Hint for better performance
+  })!
   
   // Create a temporary canvas for the source image
   const srcCanvas = document.createElement('canvas')
   srcCanvas.width = sourceImage.width
   srcCanvas.height = sourceImage.height
-  const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true })!
+  const srcCtx = srcCanvas.getContext('2d', { 
+    willReadFrequently: true,
+    alpha: true,
+    desynchronized: true
+  })!
   srcCtx.drawImage(sourceImage, 0, 0)
   const srcImageData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height)
   
@@ -180,7 +180,11 @@ export async function warpImageToTarget(
     outputData[i + 3] = 255
   }
   
-  let processedTriangles = 0
+  // Pre-calculate scale factors
+  const outputWidthScale = outputWidth
+  const outputHeightScale = outputHeight
+  const srcWidthScale = srcCanvas.width
+  const srcHeightScale = srcCanvas.height
   
   // Process each triangle using inverse warping
   for (const triangle of triangles) {
@@ -188,39 +192,38 @@ export async function warpImageToTarget(
     if (triangle.p1 >= targetLandmarks.length || 
         triangle.p2 >= targetLandmarks.length || 
         triangle.p3 >= targetLandmarks.length) {
-      console.warn(`Triangle indices out of bounds: ${triangle.p1}, ${triangle.p2}, ${triangle.p3} (max: ${targetLandmarks.length - 1})`)
       continue
     }
     
     // Get destination triangle (in target/output image)
     const dstTri = {
       p1: {
-        x: targetLandmarks[triangle.p1].x * outputWidth,
-        y: targetLandmarks[triangle.p1].y * outputHeight
+        x: targetLandmarks[triangle.p1].x * outputWidthScale,
+        y: targetLandmarks[triangle.p1].y * outputHeightScale
       },
       p2: {
-        x: targetLandmarks[triangle.p2].x * outputWidth,
-        y: targetLandmarks[triangle.p2].y * outputHeight
+        x: targetLandmarks[triangle.p2].x * outputWidthScale,
+        y: targetLandmarks[triangle.p2].y * outputHeightScale
       },
       p3: {
-        x: targetLandmarks[triangle.p3].x * outputWidth,
-        y: targetLandmarks[triangle.p3].y * outputHeight
+        x: targetLandmarks[triangle.p3].x * outputWidthScale,
+        y: targetLandmarks[triangle.p3].y * outputHeightScale
       }
     }
     
     // Get source triangle
     const srcTri = {
       p1: {
-        x: sourceLandmarks[triangle.p1].x * srcCanvas.width,
-        y: sourceLandmarks[triangle.p1].y * srcCanvas.height
+        x: sourceLandmarks[triangle.p1].x * srcWidthScale,
+        y: sourceLandmarks[triangle.p1].y * srcHeightScale
       },
       p2: {
-        x: sourceLandmarks[triangle.p2].x * srcCanvas.width,
-        y: sourceLandmarks[triangle.p2].y * srcCanvas.height
+        x: sourceLandmarks[triangle.p2].x * srcWidthScale,
+        y: sourceLandmarks[triangle.p2].y * srcHeightScale
       },
       p3: {
-        x: sourceLandmarks[triangle.p3].x * srcCanvas.width,
-        y: sourceLandmarks[triangle.p3].y * srcCanvas.height
+        x: sourceLandmarks[triangle.p3].x * srcWidthScale,
+        y: sourceLandmarks[triangle.p3].y * srcHeightScale
       }
     }
     
@@ -239,9 +242,15 @@ export async function warpImageToTarget(
     const minY = Math.floor(Math.min(dstTri.p1.y, dstTri.p2.y, dstTri.p3.y))
     const maxY = Math.ceil(Math.max(dstTri.p1.y, dstTri.p2.y, dstTri.p3.y))
     
+    // Clamp to canvas bounds
+    const startX = Math.max(0, minX)
+    const endX = Math.min(outputWidth - 1, maxX)
+    const startY = Math.max(0, minY)
+    const endY = Math.min(outputHeight - 1, maxY)
+    
     // Iterate through pixels in bounding box
-    for (let y = Math.max(0, minY); y <= Math.min(outputHeight - 1, maxY); y++) {
-      for (let x = Math.max(0, minX); x <= Math.min(outputWidth - 1, maxX); x++) {
+    for (let y = startY; y <= endY; y++) {
+      for (let x = startX; x <= endX; x++) {
         // Check if pixel is inside destination triangle
         if (isPointInTriangle({ x, y }, dstTri.p1, dstTri.p2, dstTri.p3)) {
           // Transform pixel to source coordinates
@@ -259,14 +268,11 @@ export async function warpImageToTarget(
         }
       }
     }
-    
-    processedTriangles++
   }
   
   // Put the image data on the canvas
   ctx.putImageData(outputImageData, 0, 0)
   
-  console.log(`warpImageToTarget completed: processed ${processedTriangles} triangles`)
   return canvas
 }
 
@@ -349,7 +355,6 @@ export async function morphFaces(
   // Check cache first
   const cached = morphCache.get(weights, images.length)
   if (cached) {
-    console.log('Using cached morph result')
     return cached
   }
   

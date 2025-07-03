@@ -32,66 +32,53 @@ const ControlPanel = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Card className="p-6 bg-white/95 border-gray-200 backdrop-blur-sm">
-        <motion.div 
-          className="flex items-center justify-between mb-6"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <h2 
-            className="text-2xl font-bold text-gray-900" 
-            style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', textTransform: 'none' }}
-          >
-            Control Panel
-          </h2>
-          <AnimatePresence>
-            {isNormalizing && (
+      <Card className="p-3 sm:p-4 bg-white/95 border-gray-200 backdrop-blur-sm">
+        <AnimatePresence>
+          {isNormalizing && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center gap-2 justify-center mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2"
+            >
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center gap-2"
-              >
-                <motion.div
-                  className="w-2 h-2 bg-gray-600 rounded-full"
-                  animate={{
-                    scale: [1, 1.5, 1],
-                    opacity: [1, 0.5, 1]
-                  }}
-                  transition={{
-                    duration: 0.6,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-                <span className="text-sm text-gray-500">Normalizing...</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+                className="w-3 h-3 bg-blue-600 rounded-full"
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [1, 0.5, 1]
+                }}
+                transition={{
+                  duration: 0.6,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              <span className="text-sm font-medium text-blue-700">Normalizing weights...</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        <div className="space-y-6 mb-8">
+        <div className="space-y-3 mb-4">
           {rawWeights.map((rawWeight, index) => (
             <motion.div 
               key={`slider-${index}`} 
-              className="space-y-3"
+              className="space-y-1.5"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
             >
               <div className="flex justify-between items-center">
-                <label className="text-gray-900 font-medium flex items-center gap-2">
+                <label className="text-gray-900 font-medium flex items-center gap-1.5 text-sm">
                   <motion.span 
-                    style={{ fontFamily: 'Shubha-Writing, serif', fontSize: '1.25rem', lineHeight: 1 }}
+                    style={{ fontFamily: 'Shubha-Writing, serif', fontSize: '1rem', lineHeight: 1 }}
                     whileHover={{ scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     shub
                   </motion.span>
                   <motion.span 
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm"
                     style={{ backgroundColor: colors[index] }}
                     whileHover={{ scale: 1.2, rotate: 360 }}
                     transition={{ type: "spring", stiffness: 300 }}
@@ -102,7 +89,7 @@ const ControlPanel = () => {
                 <AnimatePresence mode="wait">
                   <motion.span 
                     key={weights[index]}
-                    className="text-gray-700 font-mono text-lg font-semibold bg-gray-100 px-3 py-1 rounded"
+                    className="text-gray-700 font-mono text-sm font-semibold bg-gray-100 px-2 py-0.5 rounded"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
@@ -129,7 +116,7 @@ const ControlPanel = () => {
         </div>
         
         <motion.div 
-          className="flex gap-4"
+          className="flex gap-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.8 }}
@@ -142,7 +129,8 @@ const ControlPanel = () => {
             <Button 
               onClick={setEqualWeights}
               variant="outline" 
-              className="w-full bg-white border-gray-300 text-gray-900 hover:bg-gray-50 transition-colors"
+              size="sm"
+              className="w-full bg-white border-gray-300 text-gray-900 hover:bg-gray-50 transition-colors text-sm py-1.5"
             >
               Equal Mix
             </Button>
@@ -155,7 +143,8 @@ const ControlPanel = () => {
             <Button 
               onClick={setRandomWeights}
               variant="outline" 
-              className="w-full bg-white border-gray-300 text-gray-900 hover:bg-gray-50 transition-colors"
+              size="sm"
+              className="w-full bg-white border-gray-300 text-gray-900 hover:bg-gray-50 transition-colors text-sm py-1.5"
             >
               Random Mix
             </Button>

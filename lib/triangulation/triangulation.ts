@@ -13,8 +13,6 @@ export interface Triangle {
 
 // Create Delaunay triangulation from points
 export function createTriangulation(points: Point[]): Triangle[] {
-  console.log('createTriangulation called with', points.length, 'points')
-  
   // Add boundary points for better triangulation
   const boundaryPoints: Point[] = [
     { x: 0, y: 0 },         // Top-left
@@ -28,7 +26,6 @@ export function createTriangulation(points: Point[]): Triangle[] {
   ]
   
   const allPoints = [...points, ...boundaryPoints]
-  console.log('Total points including boundaries:', allPoints.length)
   
   // Convert points to array format for Delaunator
   const pointsArray = allPoints.map(p => [p.x, p.y])
@@ -36,7 +33,6 @@ export function createTriangulation(points: Point[]): Triangle[] {
   try {
     // Create triangulation
     const delaunay = Delaunator.from(pointsArray)
-    console.log('Delaunator created triangulation with', delaunay.triangles.length / 3, 'triangles')
     
     // Convert triangle indices to our format
     const triangles: Triangle[] = []
